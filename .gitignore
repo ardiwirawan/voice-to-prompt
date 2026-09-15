@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Secrets & local config
+groq_key.txt
+*_key.txt
+config.local.toml
+
+# Audio samples / scratch
+*.wav
+*.mp3
