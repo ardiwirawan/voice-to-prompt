@@ -12,3 +12,7 @@ config.local.toml
 # Audio samples / scratch
 *.wav
 *.mp3
+
+# Project memory - local only, never commit
+AGENTS.md
+MEMORY.md
