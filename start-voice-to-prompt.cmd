@@ -1,6 +1,6 @@
 @echo off
-rem Launcher Windows untuk voice-to-prompt (mode minimize).
-rem Jalankan setup dulu:  python -m venv venv ^&^& venv\Scripts\pip install -r requirements.txt
+rem Windows launcher for voice-to-prompt (minimized).
+rem Initial setup:  python -m venv venv ^&^& venv\Scripts\pip install -r requirements.txt
 if exist "%~dp0venv\Scripts\python.exe" (
   start "voice-to-prompt" /min "%~dp0venv\Scripts\python.exe" "%~dp0voice_to_prompt.py" --config "%~dp0config.toml"
 ) else (

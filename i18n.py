@@ -1,4 +1,4 @@
-"""i18n.py — terjemahan antarmuka voice-to-prompt (Indonesia / English)."""
+"""i18n.py - UI translations for voice-to-prompt (Indonesian / English)."""
 
 STRINGS = {
     "id": {
@@ -24,6 +24,7 @@ STRINGS = {
         "show_key": "Lihat",
         "get_key": "Dapatkan kunci gratis",
         "test_key": "Uji kunci",
+        "hotkey_unusable": "Tombol '{combo}' tidak bisa dipakai, coba yang lain.",
         "key_help": "Belum punya? Klik tombol di atas — daftar Google/email,\nlalu klik \"Create API Key\". Gratis, tanpa kartu kredit.",
         "key_empty": "Kunci masih kosong.",
         "key_testing": "Menguji…",
@@ -67,6 +68,7 @@ STRINGS = {
         "show_key": "Show",
         "get_key": "Get a free key",
         "test_key": "Test key",
+        "hotkey_unusable": "Hotkey '{combo}' is not usable, try another one.",
         "key_help": "No key yet? Click the button above — sign up with Google/email,\nthen click \"Create API Key\". Free, no credit card.",
         "key_empty": "Key is empty.",
         "key_testing": "Testing…",

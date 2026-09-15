@@ -33,15 +33,16 @@ import wave
 
 import numpy as np
 
-# sounddevice hanya dibutuhkan saat merekam; guard supaya modul tetap bisa
-# diimpor di lingkungan tanpa PortAudio (mis. CI headless / Linux minimal).
+# sounddevice is only needed while recording; guard so the module can still
+# be imported in environments without PortAudio (e.g. headless CI / minimal
+# Linux installs).
 try:
     import sounddevice as sd
 except Exception:  # pragma: no cover
     sd = None
 
-# stdout/stderr bisa memakai cp1252 saat output dialihkan (tanpa console) —
-# emoji akan crash tanpa ini.
+# stdout/stderr can be cp1252 when output is redirected (no console) —
+# emoji would crash without this.
 for _stream in (sys.stdout, sys.stderr):
     try:
         _stream.reconfigure(errors="backslashreplace")
@@ -70,8 +71,8 @@ else:
 
 
 # ----------------------------------------------------------------------------
-# Hotkey & pengetikan — pynput (cross-platform: Windows/macOS/Linux-X11)
-# Konversi format hotkey umum ("ctrl+alt+v", "f9") ke format pynput.
+# Hotkey & typing — pynput (cross-platform: Windows/macOS/Linux-X11)
+# Converts common hotkey syntax ("ctrl+alt+v", "f9") to pynput syntax.
 # ----------------------------------------------------------------------------
 def to_pynput_hotkey(hotkey: str) -> str:
     mods = {"ctrl": "<ctrl>", "control": "<ctrl>", "alt": "<alt>",
@@ -80,20 +81,20 @@ def to_pynput_hotkey(hotkey: str) -> str:
     for part in (p.strip().lower() for p in hotkey.split("+")):
         if part in mods:
             out.append(mods[part])
-        elif len(part) > 1:      # f9, enter, space, pause, dst.
+        elif len(part) > 1:      # f9, enter, space, pause, etc.
             out.append(f"<{part}>")
         else:
-            out.append(part)     # huruf/angka tunggal
+            out.append(part)     # single letter/digit
     return "+".join(out)
 
 
 def normalize_captured_key(keysym: str, char: str) -> str | None:
-    """Normalisasi penekanan tombol (event tkinter) menjadi nama hotkey.
+    """Normalize a captured key press (tkinter event) into a hotkey name.
 
-    :param keysym: event.keysym (mis. "F9", "slash", "Return")
-    :param char:   event.char (karakter printable, "" untuk tombol khusus)
-    :return: nama hotkey internal ("f9", "ctrl+/", "enter", ...); "" saat
-             tombol adalah modifier (tunggu tombol berikut); None saat batal.
+    :param keysym: event.keysym (e.g. "F9", "slash", "Return")
+    :param char:   event.char (printable character, "" for special keys)
+    :return: internal hotkey name ("f9", "ctrl+/", "enter", ...); "" while a
+             modifier is held (wait for the real key); None when cancelled.
     """
     ks = (keysym or "").lower()
     if ks == "escape":
@@ -110,11 +111,11 @@ def normalize_captured_key(keysym: str, char: str) -> str | None:
 
 
 class HotkeyListener:
-    """Hotkey global via Listener + HotKey langsung.
+    """Global hotkey via Listener + HotKey directly.
 
-    Tidak memakai GlobalHotKeys karena pynput >= 1.8 mengabaikan event
-    sintetis di sana; versi ini menerima keduanya (fisik & terinjeksi),
-    sehingga bisa diuji otomatis.
+    GlobalHotKeys is avoided because pynput >= 1.8 ignores synthetic events
+    there; this version accepts both (physical & injected), which also makes
+    it testable automatically.
     """
 
     def __init__(self, mapping: dict):
@@ -163,7 +164,7 @@ DEFAULT_CONFIG = {
     "auto_type": True,
     "typing_delay": 0.01,
     "beeps": True,
-    "ui_language": "en",   # bahasa antarmuka: "id" | "en"
+    "ui_language": "en",   # UI language: "id" | "en"
     "recording": {
         "sample_rate": 16000,
         "channels": 1,
@@ -172,18 +173,18 @@ DEFAULT_CONFIG = {
         "initial_timeout": 6.0,
         "min_seconds": 0.8,
         "max_seconds": 60.0,
-        "device": "",  # substring nama device; kosong = default sistem
-        "stop_with_hotkey": True,  # tekan hotkey lagi saat merekam = berhenti
+        "device": "",  # mic name substring; empty = system default
+        "stop_with_hotkey": True,  # press the hotkey again while recording = stop
     },
     "transcription": {
         "engine": "groq",
         "model": "whisper-large-v3",
-        "language": "",  # kosong = auto-detect; atau "id", "en", dst.
+        "language": "",  # empty = auto-detect; or "id", "en", etc.
         "api_key_env": "GROQ_API_KEY",
         "api_key_file": "groq_key.txt",
     },
     "cleanup": {
-        "enabled": True,   # rapikan hasil: buang kata pengisi, pakai koreksi terakhir
+        "enabled": True,   # clean up the transcript: remove fillers, apply corrections
         "model": "qwen/qwen3.8-27b",
     },
 }
@@ -200,10 +201,10 @@ def _deep_merge(base: dict, override: dict) -> dict:
 
 
 def load_config(argv: list[str]) -> tuple[dict, str, str, str]:
-    """Return (config_tergabung, config_dir, config.toml_path, config.local.toml_path).
+    """Return (merged_config, config_dir, config.toml_path, config.local.toml_path).
 
-    config.local.toml (ditulis oleh UI Settings) menimpa config.toml —
-    config.toml tetap bersih untuk di-commit, override lokal terpisah.
+    config.local.toml (written by the Settings UI) overrides config.toml —
+    config.toml stays clean for committing; local overrides stay separate.
     """
     cfg_path = None
     if "--config" in argv:
@@ -224,11 +225,11 @@ def load_config(argv: list[str]) -> tuple[dict, str, str, str]:
     cfg = DEFAULT_CONFIG
     if cfg_path:
         if tomllib is None:
-            raise SystemExit("Butuh Python >= 3.11 untuk membaca config.toml")
+            raise SystemExit("Python 3.11+ is required to read config.toml")
         with open(cfg_path, "rb") as f:
             cfg = _deep_merge(DEFAULT_CONFIG, tomllib.load(f))
         cfg_dir = os.path.dirname(os.path.abspath(cfg_path))
-    # override lokal (dari UI) paling akhir
+    # local override (from the UI) is merged last
     if os.path.exists(local_path) and tomllib is not None:
         with open(local_path, "rb") as f:
             cfg = _deep_merge(cfg, tomllib.load(f))
@@ -241,12 +242,12 @@ def load_config(argv: list[str]) -> tuple[dict, str, str, str]:
 def assert_audio_available():
     if sd is None:
         raise RuntimeError(
-            "Pustaka audio (PortAudio/sounddevice) tidak tersedia di sistem ini.")
+            "Audio library (PortAudio/sounddevice) is not available on this system.")
 
 
 def resolve_device(name_or_index: str):
-    """Resolve substring nama device -> index, fresh setiap panggilan
-    (index audio di Windows bisa bergeser saat headset Bluetooth lepas/pasang)."""
+    """Resolve a device-name substring -> index, fresh on every call
+    (audio indexes on Windows can shift when Bluetooth headsets connect/disconnect)."""
     if not name_or_index:
         return None
     try:
@@ -273,17 +274,17 @@ def record(cfg: dict, stop_event: threading.Event | None = None) -> np.ndarray |
     assert_audio_available()
     device = resolve_device(str(r.get("device", "")))
     if cfg["beeps"]:
-        beep_start()  # sinkron, jadi bunyi bip tidak ikut terekam
+        beep_start()  # synchronous, so the beep itself is not recorded
     with sd.InputStream(samplerate=sr, channels=ch, dtype="int16",
                         blocksize=block, device=device) as stream:
         for _ in range(int(r["max_seconds"] / 0.1)):
             if stop_event is not None and stop_event.is_set():
                 if not started:
-                    print("Rekaman dibatalkan lewat tombol.", file=sys.stderr)
+                    print("Recording cancelled by hotkey.", file=sys.stderr)
                     if cfg["beeps"]:
                         beep_fail()
                     return None
-                break  # berhenti manual: lanjut ke transkripsi
+                break  # manual stop: proceed to transcription
             data, _ = stream.read(block)
             frames.append(data.copy())
             rms = float(np.sqrt(np.mean(data.astype(np.float32) ** 2)) / 32768.0)
@@ -297,7 +298,7 @@ def record(cfg: dict, stop_event: threading.Event | None = None) -> np.ndarray |
                 if waited >= r["initial_timeout"]:
                     if cfg["beeps"]:
                         beep_fail()
-                    print("Tidak ada suara, rekaman dibatalkan.", file=sys.stderr)
+                    print("No sound detected, recording cancelled.", file=sys.stderr)
                     return None
             if started and silent_for >= r["silence_stop_after"]:
                 break
@@ -306,11 +307,11 @@ def record(cfg: dict, stop_event: threading.Event | None = None) -> np.ndarray |
     if duration < r["min_seconds"]:
         if cfg["beeps"]:
             beep_fail()
-        print(f"Rekaman terlalu pendek ({duration:.1f} detik), dibatalkan.", file=sys.stderr)
+        print(f"Recording too short ({duration:.1f} s), cancelled.", file=sys.stderr)
         return None
     if cfg["beeps"]:
         beep_done()
-    print(f"Rekaman {duration:.1f} detik, mengubah menjadi teks…", file=sys.stderr)
+    print(f"Recorded {duration:.1f} s, transcribing...", file=sys.stderr)
     return np.concatenate(frames, axis=0)
 
 
@@ -363,25 +364,25 @@ def transcribe(wav_bytes: bytes, cfg: dict, api_key: str) -> str:
     engine = cfg["transcription"]["engine"]
     if engine == "groq":
         return transcribe_groq(wav_bytes, cfg, api_key)
-    raise RuntimeError(f"Engine tidak dikenal: {engine!r} (saat ini: 'groq')")
+    raise RuntimeError(f"Unknown engine: {engine!r} (currently: 'groq')")
 
 
 # ----------------------------------------------------------------------------
-# Cleanup: rapikan transkrip mentah via LLM (buang filler, pakai koreksi akhir)
+# Cleanup: polish the raw transcript via an LLM (drop fillers, apply corrections)
 # ----------------------------------------------------------------------------
 CLEANUP_SYSTEM = (
-    "Kamu perapi transkrip suara. Rapikan teks dari pembicara: "
-    "buang kata pengisi seperti 'eee', 'umm', 'hmm', 'apa ya', 'gitu', 'nah ini' "
-    "yang tidak perlu; jika pembicara mengoreksi diri di tengah kalimat, pakai "
-    "maksud yang terakhir; perbaiki pengulangan kata yang tidak disengaja; "
-    "tambahkan tanda baca yang wajar. Jangan mengubah makna, bahasa, atau gaya "
-    "bicara. Jangan menambah atau mengurangi informasi. Jangan memberi komentar, "
-    "tanda kutip, atau penjelasan apa pun — keluarkan hanya teks hasil rapi."
+    "You are a speech-transcript cleaner. Tidy up the speaker's text: "
+    "remove unnecessary filler words (e.g. 'eee', 'umm', 'hmm', 'apa ya', "
+    "'gitu', 'nah ini', 'you know', 'like'); if the speaker corrects "
+    "themselves mid-sentence, use the latest intent; fix unintentional word "
+    "repetitions; add sensible punctuation. Do not change the meaning, "
+    "language, or speaking style. Do not add or remove information. Do not "
+    "add any commentary, quotes, or explanation - output only the cleaned text."
 )
 
 
 def cleanup_text(text: str, cfg: dict, api_key: str) -> str:
-    """Rapikan transkrip. Jika gagal, kembalikan teks mentah (jangan rugikan user)."""
+    """Clean the transcript. On failure, return the raw text (never lose user text)."""
     if not cfg["cleanup"]["enabled"] or not text.strip():
         return text
     import requests
@@ -400,7 +401,7 @@ def cleanup_text(text: str, cfg: dict, api_key: str) -> str:
         timeout=60,
     )
     if resp.status_code != 200:
-        print(f"Cleanup gagal ({resp.status_code}), pakai teks mentah.", file=sys.stderr)
+        print(f"Cleanup failed ({resp.status_code}), using raw transcript.", file=sys.stderr)
         return text
     cleaned = resp.json()["choices"][0]["message"]["content"].strip()
     return cleaned or text
@@ -416,7 +417,7 @@ def emit(text: str, cfg: dict) -> None:
     if cfg["auto_type"]:
         from pynput.keyboard import Controller
         kb = Controller()
-        # newline diratakan jadi spasi supaya tidak ke-enter duluan
+        # newlines flattened to spaces so the prompt is not submitted early
         flat = " ".join(text.split())
         time.sleep(0.2)
         for ch in flat:
@@ -425,7 +426,7 @@ def emit(text: str, cfg: dict) -> None:
 
 
 # ----------------------------------------------------------------------------
-# Tray icon (opsional — fallback ke mode console jika pystray tidak ada)
+# Tray icon (optional; falls back to console mode when pystray is missing)
 # ----------------------------------------------------------------------------
 def _tray_image():
     from PIL import Image, ImageDraw
@@ -471,19 +472,19 @@ def main(argv: list[str]) -> int:
 
     def on_hotkey():
         c = state["cfg"]
-        # F9 saat merekam = berhenti manual (jika diaktifkan)
+        # Press the hotkey again while recording to stop manually (if enabled)
         if state["recording"] and c["recording"].get("stop_with_hotkey", True):
             state["stop_event"].set()
-            print("Berhenti manual lewat tombol.", flush=True)
+            print("Stopped manually (hotkey).", flush=True)
             return
         if not busy.acquire(blocking=False):
-            print("Masih memproses rekaman sebelumnya, diabaikan.", file=sys.stderr)
+            print("Still processing the previous recording, ignored.", file=sys.stderr)
             return
         try:
             if not state["api_key"]:
                 if c["beeps"]:
                     beep_fail()
-                print("Kunci API belum diisi — buka Pengaturan dari ikon di area notifikasi.", file=sys.stderr)
+                print("API key not set - open Settings from the tray icon.", file=sys.stderr)
                 return
             state["stop_event"].clear()
             state["recording"] = True
@@ -497,13 +498,13 @@ def main(argv: list[str]) -> int:
             if not text:
                 if c["beeps"]:
                     beep_fail()
-                print("Transkrip kosong.", file=sys.stderr)
+                print("Empty transcript.", file=sys.stderr)
                 return
             if c["cleanup"]["enabled"]:
                 text = cleanup_text(text, c, state["api_key"])
-            print(f"Hasil: {text}", flush=True)
+            print(f"Result: {text}", flush=True)
             emit(text, c)
-        except Exception as e:  # noqa: BLE001 — listener tidak boleh mati
+        except Exception as e:  # noqa: BLE001 - the listener must never die
             if c["beeps"]:
                 beep_fail()
             print(f"Error: {e}", file=sys.stderr)
@@ -511,9 +512,9 @@ def main(argv: list[str]) -> int:
             busy.release()
 
     def register_hotkey():
-        # Handler harus di thread baru: callback pynput berjalan di thread
-        # listener; kalau record() blocking di sana, penekanan tombol berikutnya
-        # (misal F9 untuk berhenti manual) tidak akan pernah terbaca.
+        # The handler runs on a separate thread: pynput callbacks run on the
+        # listener thread; if record() blocked there, subsequent key presses
+        # (e.g. the hotkey to stop manually) would never be read.
         def make_listener(hotkey_str: str) -> HotkeyListener:
             mapping = {
                 to_pynput_hotkey(hotkey_str):
@@ -525,29 +526,29 @@ def main(argv: list[str]) -> int:
         try:
             listener = make_listener(chosen)
         except Exception as e:
-            print(f"Tombol '{chosen}' tidak dikenali ({e}); kembali ke F9.", file=sys.stderr)
+            print(f"Hotkey '{chosen}' is not recognized ({e}); falling back to F9.", file=sys.stderr)
             chosen = "f9"
             listener = make_listener(chosen)
         if state["hotkey_handle"] is not None:
             state["hotkey_handle"].stop()
         listener.start()
         state["hotkey_handle"] = listener
-        print(f"Tombol pintasan aktif: {chosen.upper()}", flush=True)
+        print(f"Hotkey active: {chosen.upper()}", flush=True)
 
     def reload_config():
-        """Baca ulang config + kunci API, terapkan tanpa restart."""
+        """Reload config + API key, applied without restart."""
         nonlocal cfg
         try:
             new_cfg, new_dir, *_ = load_config(argv)
             state["cfg"] = new_cfg
             state["api_key"] = load_api_key(new_cfg, new_dir)
-            register_hotkey()  # jaga-jaga jika hotkey berubah
-            print("Pengaturan dimuat ulang, langsung berlaku.", flush=True)
+            register_hotkey()  # in case the hotkey changed
+            print("Settings reloaded, applied instantly.", flush=True)
         except Exception as e:  # noqa: BLE001
-            print(f"Gagal memuat ulang pengaturan: {e}", file=sys.stderr)
+            print(f"Failed to reload settings: {e}", file=sys.stderr)
 
     def open_settings():
-        # Singleton: klik berulang pada ikon tray tidak membuka jendela ganda.
+        # Singleton: repeated tray clicks must not open duplicate windows.
         if state.get("settings_open"):
             return
         state["settings_open"] = True
@@ -566,8 +567,8 @@ def main(argv: list[str]) -> int:
         os._exit(0)
 
     register_hotkey()
-    print(f"voice-to-prompt aktif. Tekan {state['cfg']['hotkey'].upper()} lalu bicara;", flush=True)
-    print("berhenti bicara sejenak untuk mengakhiri rekaman.", flush=True)
+    print(f"voice-to-prompt is running. Press {state['cfg']['hotkey'].upper()} and speak;", flush=True)
+    print("stop talking briefly to end the recording.", flush=True)
 
     has_tray = False
     try:
@@ -577,17 +578,17 @@ def main(argv: list[str]) -> int:
         pass
 
     if not state["api_key"]:
-        print("Kunci API belum diisi — jendela Pengaturan dibuka untuk pengisian.", flush=True)
+        print("API key not set - opening the Settings window for setup.", flush=True)
         if has_tray:
-            open_settings()  # pandu pengguna baru langsung ke tempat isi kunci
+            open_settings()  # guide new users straight to the key field
         else:
             t = cfg["transcription"]
-            print(f"Mode console: isi env {t['api_key_env']} atau file {t['api_key_file']}.", flush=True)
+            print(f"Console mode: set the {t['api_key_env']} env var or create {t['api_key_file']}.", flush=True)
 
     if has_tray:
         _run_with_tray(state, open_settings, quit_app)  # blocking
     else:
-        threading.Event().wait()  # hotkey listener jalan di thread-nya sendiri
+        threading.Event().wait()  # the hotkey listener runs on its own thread
     return 0
 
 

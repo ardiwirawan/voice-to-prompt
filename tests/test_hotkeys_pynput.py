@@ -1,18 +1,23 @@
-"""Verifikasi parse pynput — dipisah karena pynput butuh X server (Linux).
+"""Verifikasi parse pynput — butuh X server (Linux desktop).
 
-Di lingkungan headless (CI tanpa display), modul ini otomatis di-skip:
-pytest.importorskip menangkap ImportError yang dilempar pynput saat backend
-X gagal. Tes-tes murni (tanpa pynput) tetap jalan di mana saja.
+Di lingkungan headless (CI tanpa display) pynput MENGIMPORT pynput.keyboard
+lalu melempar di tengah jalan. `pytest.importorskip` tidak menangkap error
+jenis itu, jadi dipakai try/except manual + skipif.
 """
 import pytest
 
-pytest.importorskip("pynput.keyboard")
-
-from pynput import keyboard  # noqa: E402
+try:
+    from pynput import keyboard
+    PYNPUT_OK = True
+except Exception:  # ImportError / X-display error di headless
+    keyboard = None
+    PYNPUT_OK = False
 
 from voice_to_prompt import normalize_captured_key, to_pynput_hotkey  # noqa: E402
 
 from test_hotkeys import MATRIX  # noqa: E402
+
+pytestmark = pytest.mark.skipif(not PYNPUT_OK, reason="pynput membutuhkan X server (headless)")
 
 
 @pytest.mark.parametrize("nama,harapan", [

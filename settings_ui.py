@@ -1,9 +1,9 @@
 """
-settings_ui.py — jendela Pengaturan (tkinter) untuk voice-to-prompt.
+settings_ui.py — Settings window (tkinter) for voice-to-prompt.
 
-Menulis override ke config.local.toml (bukan mengubah config.toml),
-lalu memanggil callback reload agar perubahan langsung berlaku tanpa restart.
-Antarmuka dwibahasa (Indonesia/English) mengikuti cfg["ui_language"].
+Writes overrides to config.local.toml (never touching config.toml), then
+calls the reload callback so changes apply instantly. The UI is bilingual
+(Indonesian/English) and follows cfg["ui_language"].
 """
 
 import os
@@ -19,7 +19,7 @@ GROQ_KEYS_URL = "https://console.groq.com/keys"
 
 
 def _input_device_names() -> list[str]:
-    import sounddevice as sd  # lazy: hanya dipakai saat membuka Pengaturan
+    import sounddevice as sd  # lazy: only needed when Settings opens
     names = []
     for d in sd.query_devices():
         if d["max_input_channels"] > 0:
@@ -67,7 +67,7 @@ class SettingsWindow:
 
         pad = {"padx": 8, "pady": 4, "sticky": "w"}
 
-        # ---- Umum / General ----
+        # ---- General ----
         frm = ttk.LabelFrame(self.root, text=tr(cfg, "section_general"))
         frm.pack(fill="x", padx=10, pady=6)
 
@@ -93,7 +93,7 @@ class SettingsWindow:
                         variable=self.v_beeps).grid(row=3, column=0, columnspan=2, **pad)
         self._scale(frm, 4, tr(cfg, "typing_delay_label"), self.v_typing_delay, 0.0, 0.05, "{:.3f}")
 
-        # ---- Perekaman / Recording ----
+        # ---- Recording ----
         frm = ttk.LabelFrame(self.root, text=tr(cfg, "section_recording"))
         frm.pack(fill="x", padx=10, pady=6)
         self._scale(frm, 0, tr(cfg, "silence_stop_label"),
@@ -112,7 +112,7 @@ class SettingsWindow:
         if not cur:
             self.v_device.set(tr(cfg, "system_default"))
 
-        # ---- Kunci API ----
+        # ---- API key ----
         frm = ttk.LabelFrame(self.root, text=tr(cfg, "section_api"))
         frm.pack(fill="x", padx=10, pady=6)
 
@@ -139,7 +139,7 @@ class SettingsWindow:
         ttk.Label(frm, text=tr(cfg, "key_help"),
                   foreground="#555").grid(row=2, column=0, columnspan=3, sticky="w", padx=8, pady=(0, 6))
 
-        # ---- Transkripsi / Transcription ----
+        # ---- Transcription ----
         frm = ttk.LabelFrame(self.root, text=tr(cfg, "section_transcription"))
         frm.pack(fill="x", padx=10, pady=6)
         ttk.Label(frm, text=tr(cfg, "model_label")).grid(row=0, column=0, **pad)
@@ -218,7 +218,7 @@ class SettingsWindow:
     def _toggle_key_visible(self):
         self.key_entry.config(show="" if self.key_entry.cget("show") else "●")
 
-    # ---- rekam hotkey: tangkap tombol fisik, isi field otomatis ----
+    # ---- hotkey capture: listen for the physical key, fill the field ----
     _MODKEYS = {"control_l": "ctrl", "control_r": "ctrl",
                 "alt_l": "alt", "alt_r": "alt",
                 "shift_l": "shift", "shift_r": "shift"}
@@ -242,14 +242,14 @@ class SettingsWindow:
             self._mods.add(self._MODKEYS[ks])
             return "break"
         key = normalize_captured_key(event.keysym, event.char)
-        if key is None:  # Esc = batal
+        if key is None:  # Esc = cancel
             self._mods.clear()
             self._stop_capture()
             return "break"
-        if key == "":    # modifier berulang, tunggu tombol sebenarnya
+        if key == "":    # modifier pressed twice, wait for the real key
             return "break"
         combo = "+".join(sorted(self._mods) + [key]) if self._mods else key
-        # Tolak kombinasi yang tidak dikenali pynput, jangan sampai disimpan
+        # Reject key combos pynput cannot parse, never save them
         try:
             from pynput import keyboard as _pk
             from voice_to_prompt import to_pynput_hotkey
@@ -257,7 +257,7 @@ class SettingsWindow:
         except Exception:
             self._mods.clear()
             self._stop_capture()
-            self.status.config(text=f"Tombol '{combo}' tidak bisa dipakai, coba yang lain.")
+            self.status.config(text=tr(self.cfg, "hotkey_unusable", combo=combo))
             return "break"
         self.v_hotkey.set(combo)
         self._mods.clear()
@@ -320,10 +320,10 @@ class SettingsWindow:
 
 
 def open_settings(get_cfg, local_path: str, key_path: str, on_save) -> None:
-    """Jalankan jendela settings (panggil di thread sendiri).
+    """Run the settings window (call from its own thread).
 
-    get_cfg: callable yang mengembalikan config TERBARU (supaya ganti bahasa
-    bisa membuka ulang jendela dengan string baru).
+    get_cfg: callable returning the LATEST config (so a language change can
+    reopen the window with the new strings).
     """
     while True:
         win = SettingsWindow(get_cfg(), local_path, key_path, on_save)

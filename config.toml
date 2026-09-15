@@ -1,51 +1,53 @@
 # voice-to-prompt configuration
-# Semua field opsional — hapus yang tidak perlu, default-nya masuk akal.
-#
-# Cara termudah mengubah setting: lewat UI — klik kanan ikon di area notifikasi → Pengaturan…
-# UI menulis ke config.local.toml (otomatis di-gitignore) yang MENIMPA file ini,
-# dan perubahan langsung berlaku tanpa restart.
+# All fields are optional - delete the ones you do not need; defaults are sane.
 
-# Bahasa antarmuka untuk jendela Pengaturan: "en" (English) | "id" (Indonesia)
+# Easiest way to change settings: the UI - right-click the tray icon -> Settings.
+# The UI writes to config.local.toml (auto-gitignored) which OVERRIDES this file,
+# and changes apply instantly without restarting.
+
+# UI language for the Settings window: "en" (English) | "id" (Indonesian)
 ui_language = "en"
 
-# Tombol pemicu global. Contoh: "f9", "f8", "ctrl+alt+v", "pause"
+# Global trigger key. Examples: "f9", "f8", "ctrl+alt+v", "pause"
 hotkey = "f9"
 
-# true  = transkrip diketik otomatis di posisi kursor
-# false = hanya masuk clipboard (paste manual)
+# true  = transcript is typed at the cursor automatically
+# false = clipboard only (paste manually)
 auto_type = true
 
-# Delay antar karakter saat mengetik (detik). Naikkan jika aplikasi target lambat.
+# Delay between characters while typing (seconds). Raise for slow target apps.
 typing_delay = 0.01
 
-# Bunyi bip sebagai penanda status (mulai/selesai/gagal)
+# Sound cues for status (start/done/failed)
 beeps = true
 
 [recording]
-sample_rate = 16000          # optimal untuk Whisper
+sample_rate = 16000          # optimal for Whisper
 channels = 1
-silence_threshold = 0.012    # ambang RMS "ada suara"; naikkan di ruangan bising
-silence_stop_after = 2.0     # berhenti setelah hening selama ini (detik)
-initial_timeout = 6.0        # batal jika tak ada suara sama sekali (detik)
-min_seconds = 0.8            # rekaman minimal
-max_seconds = 60.0           # batas maksimal rekaman
-stop_with_hotkey = true      # tekan tombol lagi saat merekam = berhenti manual
+silence_threshold = 0.012    # RMS "sound present" threshold; raise in noisy rooms
+silence_stop_after = 2.0     # stop after this much silence (seconds)
+initial_timeout = 6.0        # cancel if no sound at all for this long (seconds)
+min_seconds = 0.8            # minimum recording length
+max_seconds = 60.0           # maximum recording length
+stop_with_hotkey = true      # press the hotkey again while recording = stop manually
 
-# Substring nama mic, di-resolve ulang setiap rekaman (tahan pergeseran index).
-# Kosong = device default sistem. Contoh: "Microphone Array", "Headset", "USB"
-device = "Microphone Array"
+# Microphone name substring, re-resolved fresh on every recording
+# (tolerates Windows audio index reshuffles). Empty = system default device.
+# Examples: "Microphone Array", "Headset", "USB"
+device = ""
 
 [transcription]
-engine = "groq"              # saat ini: "groq"
-model = "whisper-large-v3"   # atau "whisper-large-v3-turbo" (lebih cepat)
-language = ""                # kosong = auto-detect; atau "id", "en", dst.
+engine = "groq"              # currently: "groq"
+model = "whisper-large-v3"   # or "whisper-large-v3-turbo" (faster)
+language = ""                # empty = auto-detect; or "id", "en", etc.
 
-# API key dibaca dari env var ini dulu, lalu file ini (relatif ke config):
+# API key is read from this env var first, then from this file (relative to config):
 api_key_env = "GROQ_API_KEY"
 api_key_file = "groq_key.txt"
 
 [cleanup]
-# Rapikan transkrip mentah pakai LLM: buang kata pengisi ("eee", "umm"),
-# pakai koreksi terakhir pembicara, tambah tanda baca. Gagal = teks mentah dipakai.
+# Polish the raw transcript with an LLM: remove filler words ("eee", "umm"),
+# apply the speaker's latest correction, add punctuation. On failure the raw
+# transcript is used - your text is never lost.
 enabled = true
-model = "qwen/qwen3.8-27b"   # alternatif: openai/gpt-oss-20b (lebih cepat)
+model = "qwen/qwen3.8-27b"   # alternatives: openai/gpt-oss-20b (faster), openai/gpt-oss-120b
