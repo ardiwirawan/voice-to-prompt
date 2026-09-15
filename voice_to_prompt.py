@@ -32,7 +32,13 @@ import time
 import wave
 
 import numpy as np
-import sounddevice as sd
+
+# sounddevice hanya dibutuhkan saat merekam; guard supaya modul tetap bisa
+# diimpor di lingkungan tanpa PortAudio (mis. CI headless / Linux minimal).
+try:
+    import sounddevice as sd
+except Exception:  # pragma: no cover
+    sd = None
 
 # stdout/stderr bisa memakai cp1252 saat output dialihkan (tanpa console) —
 # emoji akan crash tanpa ini.
@@ -232,6 +238,12 @@ def load_config(argv: list[str]) -> tuple[dict, str, str, str]:
 # ----------------------------------------------------------------------------
 # Recording (auto-stop on silence)
 # ----------------------------------------------------------------------------
+def assert_audio_available():
+    if sd is None:
+        raise RuntimeError(
+            "Pustaka audio (PortAudio/sounddevice) tidak tersedia di sistem ini.")
+
+
 def resolve_device(name_or_index: str):
     """Resolve substring nama device -> index, fresh setiap panggilan
     (index audio di Windows bisa bergeser saat headset Bluetooth lepas/pasang)."""
@@ -258,6 +270,7 @@ def record(cfg: dict, stop_event: threading.Event | None = None) -> np.ndarray |
     silent_for = 0.0
     waited = 0.0
 
+    assert_audio_available()
     device = resolve_device(str(r.get("device", "")))
     if cfg["beeps"]:
         beep_start()  # sinkron, jadi bunyi bip tidak ikut terekam

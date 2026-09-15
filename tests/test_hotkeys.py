@@ -2,9 +2,11 @@
 
 Bagian terpenting: memastikan TIDAK ADA tombol yang menghasilkan nilai
 yang membuat crash (pelajaran dari bug 'ctrl+slash').
+
+Catatan: tes yang memverifikasi parse pynput ada di test_hotkeys_pynput.py
+(skip otomatis di lingkungan headless tanpa X server).
 """
 import pytest
-from pynput import keyboard
 
 from voice_to_prompt import normalize_captured_key, to_pynput_hotkey
 
@@ -24,15 +26,6 @@ from voice_to_prompt import normalize_captured_key, to_pynput_hotkey
 ])
 def test_konversi_pynput(masukan, harapan):
     assert to_pynput_hotkey(masukan) == harapan
-
-
-@pytest.mark.parametrize("nama,harapan", [
-    ("f9", "<f9>"), ("ctrl+alt+v", "<ctrl>+<alt>+v"),
-])
-def test_hasil_normalisasi_selalu_bisa_di_parse(nama, harapan):
-    """Regresi: nilai dari capture harus selalu valid untuk pynput."""
-    assert to_pynput_hotkey(nama) == harapan
-    keyboard.HotKey.parse(to_pynput_hotkey(nama))   # tidak boleh raise
 
 
 # Matriks tombol nyata: (keysym tkinter, char tkinter) -> hotkey internal
@@ -71,15 +64,6 @@ def test_normalisasi_matriks_lengkap(keysym, char, harapan):
     assert normalize_captured_key(keysym, char) == harapan
 
 
-@pytest.mark.parametrize("keysym,char", [(k, c) for k, c, _ in MATRIX])
-def test_matriks_tidak_pernah_crash_di_pynput(keysym, char):
-    """Regresi besar: SETIAP tombol dari matriks harus menghasilkan nilai
-    yang bisa di-parse pynput (pelajaran bug 'ctrl+slash')."""
-    hasil = normalize_captured_key(keysym, char)
-    assert hasil is not None and hasil != ""
-    keyboard.HotKey.parse(to_pynput_hotkey(hasil))   # tidak boleh raise
-
-
 def test_modifier_tunggal_belum_lengkap():
     assert normalize_captured_key("Control_L", "") == ""
     assert normalize_captured_key("Shift_R", "") == ""
@@ -100,4 +84,3 @@ def test_kombinasi_modifier_plus_tombol_valid():
     mods = {"ctrl"}   # akumulasi UI
     combo = "+".join(sorted(mods) + [key])
     assert combo == "ctrl+/"
-    keyboard.HotKey.parse(to_pynput_hotkey(combo))

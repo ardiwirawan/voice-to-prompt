@@ -11,7 +11,6 @@ import tkinter as tk
 import webbrowser
 from tkinter import ttk
 
-import sounddevice as sd
 import tomli_w
 
 from i18n import LANG_NAMES, tr
@@ -20,6 +19,7 @@ GROQ_KEYS_URL = "https://console.groq.com/keys"
 
 
 def _input_device_names() -> list[str]:
+    import sounddevice as sd  # lazy: hanya dipakai saat membuka Pengaturan
     names = []
     for d in sd.query_devices():
         if d["max_input_channels"] > 0:
